@@ -57,7 +57,13 @@ class Email implements \PHPCI\Plugin
                            ? $phpCiSettings['email_settings']['from_address']
                            : "notifications-ci@phptesting.org";
 
-        $this->mailer = $mailer;
+        $transport = \Swift_SmtpTransport::newInstance($phpCiSettings['email_settings']['smtp_address'], $phpCiSettings['email_settings']['smtp_port'])
+            ->setEncryption("tls")
+            ->setUsername($phpCiSettings['email_settings']['smtp_username'])
+            ->setPassword($phpCiSettings['email_settings']['smtp_password']);
+
+        $this->mailer =  \Swift_Mailer::newInstance($transport);
+        //$this->mailer = $mailer;
     }
 
     /**
@@ -66,7 +72,6 @@ class Email implements \PHPCI\Plugin
     public function execute()
     {
         $addresses = $this->getEmailAddresses();
-
         // Without some email addresses in the yml file then we
         // can't do anything.
         if (count($addresses) == 0) {
