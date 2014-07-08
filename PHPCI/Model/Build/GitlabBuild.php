@@ -46,9 +46,8 @@ class GitlabBuild extends RemoteGitBuild
         $key = trim($this->getProject()->getGitKey());
 
         if (!empty($key)) {
-            $user = $this->getProject()->getAccessInformation("user");
-            $domain = $this->getProject()->getAccessInformation("domain");
-            return $user . '@' . $domain . ':' . $this->getProject()->getReference() . '.git';
+            $informations = $this->getProject()->getAccessInformation();
+            return $informations["user"] . '@' . $informations["domain"] . ':' . $this->getProject()->getReference() . '.git';
         }
     }
 }
