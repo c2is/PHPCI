@@ -1,14 +1,15 @@
 <?php
 /**
-* PHPCI - Continuous Integration for PHP
-*
-* @copyright    Copyright 2013, Block 8 Limited.
-* @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
-* @link         http://www.phptesting.org/
-*/
+ * PHPCI - Continuous Integration for PHP
+ *
+ * @copyright    Copyright 2014, Block 8 Limited.
+ * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
+ * @link         https://www.phptesting.org/
+ */
 
 namespace PHPCI\Plugin;
 
+use b8\View;
 use PHPCI\Builder;
 use PHPCI\Model\Build;
 
@@ -40,13 +41,12 @@ class Email implements \PHPCI\Plugin
      */
     protected $fromAddress;
 
-    public function __construct(Builder $phpci,
-                                Build $build,
-                                \Swift_Mailer $mailer,
-                                array $options = array()
-
-    )
-    {
+    public function __construct(
+        Builder $phpci,
+        Build $build,
+        \Swift_Mailer $mailer,
+        array $options = array()
+    ) {
         $this->phpci        = $phpci;
         $this->build        = $build;
         $this->options      = $options;
@@ -84,10 +84,16 @@ class Email implements \PHPCI\Plugin
                 sprintf("Log Output: <br><pre>%s</pre>", $logText)
             );
         } else {
+            $view = new View('Email/failed');
+            $view->build = $this->build;
+            $view->project = $this->build->getProject();
+
+            $emailHtml = $view->render();
+
             $sendFailures = $this->sendSeparateEmails(
                 $addresses,
                 sprintf($subjectTemplate, $projectName, "Failing Build"),
-                sprintf("Log Output: <br><pre>%s</pre>", $logText)
+                $emailHtml
             );
         }
 
@@ -99,18 +105,24 @@ class Email implements \PHPCI\Plugin
     }
 
     /**
-     * @param array|string $toAddresses   Array or single address to send to
-     * @param string       $subject       Email subject
-     * @param string       $body          Email body
+     * @param string[]|string $toAddresses Array or single address to send to
+     * @param string[] $ccList
+     * @param string $subject Email subject
+     * @param string $body Email body
      * @return array                      Array of failed addresses
      */
-    public function sendEmail($toAddresses, $subject, $body)
+    public function sendEmail($toAddresses, $ccList, $subject, $body)
     {
         $message = \Swift_Message::newInstance($subject)
             ->setFrom($this->fromAddress)
             ->setTo($toAddresses)
             ->setBody($body)
             ->setContentType("text/html");
+
+        if (is_array($ccList) && count($ccList)) {
+            $message->setCc($ccList);
+        }
+
         $failedAddresses = array();
         $this->mailer->send($message, $failedAddresses);
 
@@ -120,8 +132,10 @@ class Email implements \PHPCI\Plugin
     public function sendSeparateEmails(array $toAddresses, $subject, $body)
     {
         $failures = array();
+        $ccList = $this->getCcAddresses();
+
         foreach ($toAddresses as $address) {
-            $newFailures = $this->sendEmail($address, $subject, $body);
+            $newFailures = $this->sendEmail($address, $ccList, $subject, $body);
             foreach ($newFailures as $failure) {
                 $failures[] = $failure;
             }
@@ -149,5 +163,18 @@ class Email implements \PHPCI\Plugin
             return $addresses;
         }
         return $addresses;
+    }
+
+    protected function getCcAddresses()
+    {
+        $ccAddresses = array();
+
+        if (isset($this->options['cc'])) {
+            foreach ($this->options['cc'] as $address) {
+                $ccAddresses[] = $address;
+            }
+        }
+
+        return $ccAddresses;
     }
 }

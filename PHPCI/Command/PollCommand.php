@@ -1,11 +1,10 @@
 <?php
-
 /**
  * PHPCI - Continuous Integration for PHP
  *
- * @copyright    Copyright 2013, Block 8 Limited.
+ * @copyright    Copyright 2014, Block 8 Limited.
  * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
- * @link         http://www.phptesting.org/
+ * @link         https://www.phptesting.org/
  */
 
 namespace PHPCI\Command;
@@ -80,13 +79,15 @@ class PollCommand extends Command
             $this->logger->info("Last commit to github for " . $project->getTitle() . " is " . $last_commit);
 
             if ($project->getLastCommit() != $last_commit && $last_commit != "") {
-                $this->logger->info("Last commit is different from database, adding new build for " . $project->getTitle());
+                $this->logger->info(
+                    "Last commit is different from database, adding new build for " . $project->getTitle()
+                );
 
                 $build = new Build();
                 $build->setProjectId($project->getId());
                 $build->setCommitId($last_commit);
                 $build->setStatus(Build::STATUS_NEW);
-                $build->setBranch($project->getType() === 'hg' ? 'default' : 'master');
+                $build->setBranch($project->getBranch());
                 $build->setCreated(new \DateTime());
                 if (!empty($last_committer)) {
                     $build->setCommitterEmail($last_committer);
@@ -101,4 +102,3 @@ class PollCommand extends Command
         $this->logger->addInfo("Finished processing builds");
     }
 }
-

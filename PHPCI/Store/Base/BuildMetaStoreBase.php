@@ -8,7 +8,7 @@ namespace PHPCI\Store\Base;
 
 use b8\Database;
 use b8\Exception\HttpException;
-use b8\Store;
+use PHPCI\Store;
 use PHPCI\Model\BuildMeta;
 
 /**
@@ -31,7 +31,7 @@ class BuildMetaStoreBase extends Store
             throw new HttpException('Value passed to ' . __FUNCTION__ . ' cannot be null.');
         }
 
-        $query = 'SELECT * FROM build_meta WHERE id = :id LIMIT 1';
+        $query = 'SELECT * FROM `build_meta` WHERE `id` = :id LIMIT 1';
         $stmt = Database::getConnection($useConnection)->prepare($query);
         $stmt->bindValue(':id', $value);
 
@@ -42,6 +42,38 @@ class BuildMetaStoreBase extends Store
         }
 
         return null;
+    }
+
+    public function getByProjectId($value, $limit = null, $useConnection = 'read')
+    {
+        if (is_null($value)) {
+            throw new HttpException('Value passed to ' . __FUNCTION__ . ' cannot be null.');
+        }
+
+        $add = '';
+
+        if ($limit) {
+            $add .= ' LIMIT ' . $limit;
+        }
+
+        $count = null;
+
+        $query = 'SELECT * FROM `build_meta` WHERE `project_id` = :project_id' . $add;
+        $stmt = Database::getConnection($useConnection)->prepare($query);
+        $stmt->bindValue(':project_id', $value);
+
+        if ($stmt->execute()) {
+            $res = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+            $map = function ($item) {
+                return new BuildMeta($item);
+            };
+            $rtn = array_map($map, $res);
+
+            return array('items' => $rtn, 'count' => $count);
+        } else {
+            return array('items' => array(), 'count' => 0);
+        }
     }
 
     public function getByBuildId($value, $limit = null, $useConnection = 'read')
@@ -58,7 +90,7 @@ class BuildMetaStoreBase extends Store
 
         $count = null;
 
-        $query = 'SELECT * FROM build_meta WHERE build_id = :build_id' . $add;
+        $query = 'SELECT * FROM `build_meta` WHERE `build_id` = :build_id' . $add;
         $stmt = Database::getConnection($useConnection)->prepare($query);
         $stmt->bindValue(':build_id', $value);
 

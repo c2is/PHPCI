@@ -6,7 +6,7 @@
 
 namespace PHPCI\Model\Base;
 
-use b8\Model;
+use PHPCI\Model;
 use b8\Store\Factory;
 
 /**
@@ -82,14 +82,17 @@ class UserBase extends Model
         'email' => array(
             'type' => 'varchar',
             'length' => 250,
+            'default' => null,
         ),
         'hash' => array(
             'type' => 'varchar',
             'length' => 250,
+            'default' => null,
         ),
         'is_admin' => array(
             'type' => 'tinyint',
             'length' => 1,
+            'default' => null,
         ),
         'name' => array(
             'type' => 'varchar',

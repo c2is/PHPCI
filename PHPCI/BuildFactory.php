@@ -2,17 +2,15 @@
 /**
 * PHPCI - Continuous Integration for PHP
 *
-* @copyright    Copyright 2013, Block 8 Limited.
+* @copyright    Copyright 2014, Block 8 Limited.
 * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
-* @link         http://www.phptesting.org/
+* @link         https://www.phptesting.org/
 */
 
 namespace PHPCI;
 
+use b8\Store\Factory;
 use PHPCI\Model\Build;
-use PHPCI\Model\Build\LocalBuild;
-use PHPCI\Model\Build\GithubBuild;
-use PHPCI\Model\Build\BitbucketBuild;
 
 /**
 * PHPCI Build Factory - Takes in a generic "Build" and returns a type-specific build model.
@@ -21,8 +19,25 @@ use PHPCI\Model\Build\BitbucketBuild;
 class BuildFactory
 {
     /**
+     * @param $buildId
+     * @return Build
+     * @throws \Exception
+     */
+    public static function getBuildById($buildId)
+    {
+        $build = Factory::getStore('Build')->getById($buildId);
+
+        if (empty($build)) {
+            throw new \Exception('Build ID ' . $buildId . ' does not exist.');
+        }
+
+        return self::getBuild($build);
+    }
+
+    /**
     * Takes a generic build and returns a type-specific build model.
-    * @return \PHPCI\Model\Build\LocalBuild|\PHPCI\Model\Build\GithubBuild|\PHPCI\Model\Build\BitbucketBuild
+    * @param Build $base The build from which to get a more specific build type.
+    * @return Build
     */
     public static function getBuild(Build $base)
     {

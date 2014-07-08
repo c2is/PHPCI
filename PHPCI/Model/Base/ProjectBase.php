@@ -6,7 +6,7 @@
 
 namespace PHPCI\Model\Base;
 
-use b8\Model;
+use PHPCI\Model;
 use b8\Store\Factory;
 
 /**
@@ -36,11 +36,13 @@ class ProjectBase extends Model
         'id' => null,
         'title' => null,
         'reference' => null,
-        'git_key' => null,
+        'ssh_private_key' => null,
+        'ssh_public_key' => null,
         'type' => null,
-        'token' => null,
         'access_information' => null,
         'last_commit' => null,
+        'build_config' => null,
+        'allow_public_status' => null,
     );
 
     /**
@@ -51,11 +53,14 @@ class ProjectBase extends Model
         'id' => 'getId',
         'title' => 'getTitle',
         'reference' => 'getReference',
-        'git_key' => 'getGitKey',
+        'branch' => 'getBranch',
+        'ssh_private_key' => 'getSshPrivateKey',
+        'ssh_public_key' => 'getSshPublicKey',
         'type' => 'getType',
-        'token' => 'getToken',
         'access_information' => 'getAccessInformation',
         'last_commit' => 'getLastCommit',
+        'build_config' => 'getBuildConfig',
+        'allow_public_status' => 'getAllowPublicStatus',
 
         // Foreign key getters:
     );
@@ -68,11 +73,14 @@ class ProjectBase extends Model
         'id' => 'setId',
         'title' => 'setTitle',
         'reference' => 'setReference',
-        'git_key' => 'setGitKey',
+        'branch' => 'setBranch',
+        'ssh_private_key' => 'setSshPrivateKey',
+        'ssh_public_key' => 'setSshPublicKey',
         'type' => 'setType',
-        'token' => 'setToken',
         'access_information' => 'setAccessInformation',
         'last_commit' => 'setLastCommit',
+        'build_config' => 'setBuildConfig',
+        'allow_public_status' => 'setAllowPublicStatus',
 
         // Foreign key setters:
     );
@@ -91,12 +99,24 @@ class ProjectBase extends Model
         'title' => array(
             'type' => 'varchar',
             'length' => 250,
+            'default' => null,
         ),
         'reference' => array(
             'type' => 'varchar',
             'length' => 250,
+            'default' => null,
         ),
-        'git_key' => array(
+        'branch' => array(
+            'type' => 'varchar',
+            'length' => 250,
+            'default' => null,
+        ),
+        'ssh_private_key' => array(
+            'type' => 'text',
+            'nullable' => true,
+            'default' => null,
+        ),
+        'ssh_public_key' => array(
             'type' => 'text',
             'nullable' => true,
             'default' => null,
@@ -105,12 +125,6 @@ class ProjectBase extends Model
             'type' => 'varchar',
             'length' => 50,
             'default' => 1,
-        ),
-        'token' => array(
-            'type' => 'varchar',
-            'length' => 50,
-            'nullable' => true,
-            'default' => null,
         ),
         'access_information' => array(
             'type' => 'varchar',
@@ -123,6 +137,15 @@ class ProjectBase extends Model
             'length' => 250,
             'nullable' => true,
             'default' => null,
+        ),
+        'build_config' => array(
+            'type' => 'text',
+            'nullable' => true,
+            'default' => null,
+        ),
+        'allow_public_status' => array(
+            'type' => 'tinyint',
+            'length' => 4,
         ),
     );
 
@@ -177,13 +200,39 @@ class ProjectBase extends Model
     }
 
     /**
-    * Get the value of GitKey / git_key.
+     * Get the value of Branch / branch.
+     *
+     * @return string
+     */
+    public function getBranch()
+    {
+        if (empty($this->data['branch'])) {
+            return $this->getType() === 'hg' ? 'default' : 'master';
+        } else {
+            return $this->data['branch'];
+        }
+    }
+
+    /**
+    * Get the value of SshPrivateKey / ssh_private_key.
     *
     * @return string
     */
-    public function getGitKey()
+    public function getSshPrivateKey()
     {
-        $rtn    = $this->data['git_key'];
+        $rtn    = $this->data['ssh_private_key'];
+
+        return $rtn;
+    }
+
+    /**
+    * Get the value of SshPublicKey / ssh_public_key.
+    *
+    * @return string
+    */
+    public function getSshPublicKey()
+    {
+        $rtn    = $this->data['ssh_public_key'];
 
         return $rtn;
     }
@@ -201,34 +250,13 @@ class ProjectBase extends Model
     }
 
     /**
-    * Get the value of Token / token.
-    *
-    * @return string
-    */
-    public function getToken()
-    {
-        $rtn    = $this->data['token'];
-
-        return $rtn;
-    }
-
-    /**
     * Get the value of AccessInformation / access_information.
     *
-    * @param string|null $key Key of desired information
-    *
     * @return string
     */
-    public function getAccessInformation($key = null)
+    public function getAccessInformation()
     {
-        $data = unserialize($this->data['access_information']);
-        if (is_null($key)) {
-            $rtn = $data;
-        } else if (isset($data['access_information'][$key])) {
-            $rtn = $data['access_information'][$key];
-        } else {
-            $rtn = null;
-        }
+        $rtn    = unserialize($this->data['access_information']);
 
         return $rtn;
     }
@@ -241,6 +269,30 @@ class ProjectBase extends Model
     public function getLastCommit()
     {
         $rtn    = $this->data['last_commit'];
+
+        return $rtn;
+    }
+
+    /**
+    * Get the value of BuildConfig / build_config.
+    *
+    * @return string
+    */
+    public function getBuildConfig()
+    {
+        $rtn    = $this->data['build_config'];
+
+        return $rtn;
+    }
+
+    /**
+    * Get the value of AllowPublicStatus / allow_public_status.
+    *
+    * @return int
+    */
+    public function getAllowPublicStatus()
+    {
+        $rtn    = $this->data['allow_public_status'];
 
         return $rtn;
     }
@@ -306,21 +358,58 @@ class ProjectBase extends Model
     }
 
     /**
-    * Set the value of GitKey / git_key.
+    * Set the value of Branch / branch.
     *
+    * Must not be null.
     * @param $value string
     */
-    public function setGitKey($value)
+    public function setBranch($value)
     {
-        $this->_validateString('GitKey', $value);
+        $this->_validateString('Branch', $value);
 
-        if ($this->data['git_key'] === $value) {
+        if ($this->data['branch'] === $value) {
             return;
         }
 
-        $this->data['git_key'] = $value;
+        $this->data['branch'] = $value;
 
-        $this->_setModified('git_key');
+        $this->_setModified('branch');
+    }
+
+    /**
+    * Set the value of SshPrivateKey / ssh_private_key.
+    *
+    * @param $value string
+    */
+    public function setSshPrivateKey($value)
+    {
+        $this->_validateString('SshPrivateKey', $value);
+
+        if ($this->data['ssh_private_key'] === $value) {
+            return;
+        }
+
+        $this->data['ssh_private_key'] = $value;
+
+        $this->_setModified('ssh_private_key');
+    }
+
+    /**
+    * Set the value of SshPublicKey / ssh_public_key.
+    *
+    * @param $value string
+    */
+    public function setSshPublicKey($value)
+    {
+        $this->_validateString('SshPublicKey', $value);
+
+        if ($this->data['ssh_public_key'] === $value) {
+            return;
+        }
+
+        $this->data['ssh_public_key'] = $value;
+
+        $this->_setModified('ssh_public_key');
     }
 
     /**
@@ -341,24 +430,6 @@ class ProjectBase extends Model
         $this->data['type'] = $value;
 
         $this->_setModified('type');
-    }
-
-    /**
-    * Set the value of Token / token.
-    *
-    * @param $value string
-    */
-    public function setToken($value)
-    {
-        $this->_validateString('Token', $value);
-
-        if ($this->data['token'] === $value) {
-            return;
-        }
-
-        $this->data['token'] = $value;
-
-        $this->_setModified('token');
     }
 
     /**
@@ -398,6 +469,44 @@ class ProjectBase extends Model
     }
 
     /**
+    * Set the value of BuildConfig / build_config.
+    *
+    * @param $value string
+    */
+    public function setBuildConfig($value)
+    {
+        $this->_validateString('BuildConfig', $value);
+
+        if ($this->data['build_config'] === $value) {
+            return;
+        }
+
+        $this->data['build_config'] = $value;
+
+        $this->_setModified('build_config');
+    }
+
+    /**
+    * Set the value of AllowPublicStatus / allow_public_status.
+    *
+    * Must not be null.
+    * @param $value int
+    */
+    public function setAllowPublicStatus($value)
+    {
+        $this->_validateNotNull('AllowPublicStatus', $value);
+        $this->_validateInt('AllowPublicStatus', $value);
+
+        if ($this->data['allow_public_status'] === $value) {
+            return;
+        }
+
+        $this->data['allow_public_status'] = $value;
+
+        $this->_setModified('allow_public_status');
+    }
+
+    /**
      * Get Build models by ProjectId for this Project.
      *
      * @uses \PHPCI\Store\BuildStore::getByProjectId()
@@ -406,6 +515,18 @@ class ProjectBase extends Model
      */
     public function getProjectBuilds()
     {
-        return Factory::getStore('Build')->getByProjectId($this->getId());
+        return Factory::getStore('Build', 'PHPCI')->getByProjectId($this->getId());
+    }
+
+    /**
+     * Get BuildMeta models by ProjectId for this Project.
+     *
+     * @uses \PHPCI\Store\BuildMetaStore::getByProjectId()
+     * @uses \PHPCI\Model\BuildMeta
+     * @return \PHPCI\Model\BuildMeta[]
+     */
+    public function getProjectBuildMetas()
+    {
+        return Factory::getStore('BuildMeta', 'PHPCI')->getByProjectId($this->getId());
     }
 }

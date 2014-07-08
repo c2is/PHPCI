@@ -1,7 +1,13 @@
 <?php
+/**
+ * PHPCI - Continuous Integration for PHP
+ *
+ * @copyright    Copyright 2014, Block 8 Limited.
+ * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
+ * @link         https://www.phptesting.org/
+ */
 
-namespace PHPCI\Helper;
-
+namespace PHPCI\Logging;
 
 use b8\Store;
 use Monolog\Handler\AbstractProcessingHandler;
@@ -16,7 +22,7 @@ class BuildDBLogHandler extends AbstractProcessingHandler
 
     protected $logValue;
 
-    function __construct(
+    public function __construct(
         Build $build,
         $level = LogLevel::INFO,
         $bubble = true
@@ -29,7 +35,10 @@ class BuildDBLogHandler extends AbstractProcessingHandler
 
     protected function write(array $record)
     {
-        $this->logValue .= (string)$record['formatted'];
+        $message = (string)$record['message'];
+        $message = str_replace($this->build->currentBuildPath, '/', $message);
+
+        $this->logValue .= $message . PHP_EOL;
         $this->build->setLog($this->logValue);
     }
-} 
+}

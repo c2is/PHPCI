@@ -4,6 +4,7 @@ var locPlugin = PHPCI.UiPlugin.extend({
     title: 'Lines of Code',
     lastData: null,
     displayOnUpdate: false,
+    rendered: false,
 
     register: function() {
         var self = this;
@@ -14,8 +15,7 @@ var locPlugin = PHPCI.UiPlugin.extend({
         });
 
         $(window).on('build-updated', function(data) {
-            if (data.queryData.status > 1) {
-                self.displayOnUpdate = true;
+            if (data.queryData.status > 1 && !self.rendered) {
                 query();
             }
         });
@@ -29,32 +29,32 @@ var locPlugin = PHPCI.UiPlugin.extend({
 
     onUpdate: function(e) {
         this.lastData = e.queryData;
-
-        if (this.displayOnUpdate) {
-            this.displayChart();
-        }
+        this.displayChart();
     },
 
     displayChart: function() {
-        var build = this.lastData;
+        var builds = this.lastData;
 
-        if (!build || !build.length) {
+        if (!builds || !builds.length) {
             return;
         }
 
+        this.rendered = true;
+
         $('#phploc-lines').empty().animate({height: '275px'});
 
-        var data = [["Build", "Lines", "Comment Lines", "Non-Comment Lines", "Logical Lines"]];
-        for (var idx in build) {
-            data.push(['Build ' + build[idx].build_id, parseInt(build[idx].meta_value.LOC), parseInt(build[idx].meta_value.CLOC), parseInt(build[idx].meta_value.NCLOC), parseInt(build[idx].meta_value.LLOC)]);
+        var titles = ['Build', 'Lines', 'Comment Lines', 'Non-Comment Lines', 'Logical Lines'];
+        var data = [titles];
+        for (var i in builds) {
+            data.push(['#' + builds[i].build_id, parseInt(builds[i].meta_value.LOC), parseInt(builds[i].meta_value.CLOC), parseInt(builds[i].meta_value.NCLOC), parseInt(builds[i].meta_value.LLOC)]);
         }
 
         var data = google.visualization.arrayToDataTable(data);
-
         var options = {
             hAxis: {title: 'Builds'},
             vAxis: {title: 'Lines'},
-            backgroundColor: { fill: 'transparent' }
+            backgroundColor: { fill: 'transparent' },
+            height: 275
         };
 
         var chart = new google.visualization.LineChart(document.getElementById('phploc-lines'));

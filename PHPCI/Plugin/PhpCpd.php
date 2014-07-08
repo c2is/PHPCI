@@ -1,11 +1,11 @@
 <?php
 /**
-* PHPCI - Continuous Integration for PHP
-*
-* @copyright    Copyright 2013, Block 8 Limited.
-* @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
-* @link         http://www.phptesting.org/
-*/
+ * PHPCI - Continuous Integration for PHP
+ *
+ * @copyright    Copyright 2014, Block 8 Limited.
+ * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
+ * @link         https://www.phptesting.org/
+ */
 
 namespace PHPCI\Plugin;
 
@@ -23,6 +23,7 @@ class PhpCpd implements \PHPCI\Plugin
     protected $directory;
     protected $args;
     protected $phpci;
+    protected $build;
 
     /**
      * @var string, based on the assumption the root may not hold the code to be
@@ -38,6 +39,8 @@ class PhpCpd implements \PHPCI\Plugin
     public function __construct(Builder $phpci, Build $build, array $options = array())
     {
         $this->phpci = $phpci;
+        $this->build = $build;
+
         $this->path = $phpci->buildPath;
         $this->standard = 'PSR1';
         $this->ignore = $phpci->ignore;
@@ -51,7 +54,7 @@ class PhpCpd implements \PHPCI\Plugin
         }
 
         if (!empty($options['ignore'])) {
-            $this->ignore = $this->phpci->ignore;
+            $this->ignore = $options['ignore'];
         }
     }
 
@@ -63,7 +66,15 @@ class PhpCpd implements \PHPCI\Plugin
         $ignore = '';
         if (count($this->ignore)) {
             $map = function ($item) {
-                return ' --exclude ' . (substr($item, -1) == '/' ? substr($item, 0, -1) : $item);
+                // remove the trailing slash
+                $item = (substr($item, -1) == '/' ? substr($item, 0, -1) : $item);
+
+                if (is_file($this->path . '/' . $item)) {
+                    return ' --names-exclude ' . $item;
+                } else {
+                    return ' --exclude ' . $item;
+                }
+
             };
             $ignore = array_map($map, $this->ignore);
 
@@ -77,10 +88,50 @@ class PhpCpd implements \PHPCI\Plugin
             return false;
         }
 
-        $success = $this->phpci->executeCommand($phpcpd . ' %s "%s"', $ignore, $this->path);
+        $tmpfilename = tempnam('/tmp', 'phpcpd');
+
+        $success = $this->phpci->executeCommand($phpcpd . ' --log-pmd="%s" %s "%s"', $tmpfilename, $ignore, $this->path);
 
         print $this->phpci->getLastOutput();
+        
+        list($errorCount, $data) = $this->processReport(file_get_contents($tmpfilename));
+        $this->build->storeMeta('phpcpd-warnings', $errorCount);
+        $this->build->storeMeta('phpcpd-data', $data);
+
+        unlink($tmpfilename);
 
         return $success;
     }
+
+    protected function processReport($xmlString)
+    {
+        $xml = simplexml_load_string($xmlString);
+
+        if ($xml === false) {
+            $this->phpci->log($xmlString);
+            throw new \Exception('Could not process PHPCPD report XML.');
+        }
+
+        $warnings = 0;
+        $data = array();
+
+        foreach ($xml->duplication as $duplication) {
+            foreach ($duplication->file as $file) {
+                $fileName = (string)$file['path'];
+                $fileName = str_replace($this->phpci->buildPath, '', $fileName);
+
+                $data[] = array(
+                    'file' => $fileName,
+                    'line_start' => (int) $file['line'],
+                    'line_end' => (int) $file['line'] + (int) $duplication['lines'],
+                    'code' => (string) $duplication->codefragment
+                );
+            }
+
+            $warnings++;
+        }
+
+        return array($warnings, $data);
+    }
 }
+

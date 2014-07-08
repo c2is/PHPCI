@@ -2,14 +2,16 @@
 /**
 * PHPCI - Continuous Integration for PHP
 *
-* @copyright    Copyright 2013, Block 8 Limited.
+* @copyright    Copyright 2014, Block 8 Limited.
 * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
-* @link         http://www.phptesting.org/
+* @link         https://www.phptesting.org/
 */
 
 namespace PHPCI;
 
 use b8;
+use b8\Exception\HttpException;
+use b8\Http\Response;
 use b8\Http\Response\RedirectResponse;
 use b8\View;
 
@@ -19,86 +21,88 @@ use b8\View;
 */
 class Application extends b8\Application
 {
+    public function init()
+    {
+        $request =& $this->request;
+        $route = '/:controller/:action';
+        $opts = array('controller' => 'Home', 'action' => 'index');
+
+        // Inlined as a closure to fix "using $this when not in object context" on 5.3
+        $validateSession = function () {
+            if (!empty($_SESSION['user_id'])) {
+                $user = b8\Store\Factory::getStore('User')->getByPrimaryKey($_SESSION['user_id']);
+
+                if ($user) {
+                    $_SESSION['user'] = $user;
+                    return true;
+                }
+
+                unset($_SESSION['user_id']);
+            }
+
+            return false;
+        };
+
+        // Handler for the route we're about to register, checks for a valid session where necessary:
+        $routeHandler = function (&$route, Response &$response) use (&$request, $validateSession) {
+            $skipValidation = in_array($route['controller'], array('session', 'webhook', 'build-status'));
+
+            if (!$skipValidation && !$validateSession()) {
+                if ($request->isAjax()) {
+                    $response->setResponseCode(401);
+                    $response->setContent('');
+                } else {
+                    $_SESSION['login_redirect'] = substr($request->getPath(), 1);
+                    $response = new RedirectResponse($response);
+                    $response->setHeader('Location', PHPCI_URL.'session/login');
+                }
+
+                return false;
+            }
+
+            return true;
+        };
+
+        $this->router->clearRoutes();
+        $this->router->register($route, $opts, $routeHandler);
+    }
     /**
     * Handle an incoming web request.
     */
     public function handleRequest()
     {
         try {
-            $this->initRequest();
+            $this->response = parent::handleRequest();
+        } catch (HttpException $ex) {
+            $this->config->set('page_title', 'Error');
 
-            // Validate the user's session unless it is a login/logout action or a web hook:
-            $sessionAction = ($this->controllerName == 'Session' && in_array($this->action, array('login', 'logout')));
-            $externalAction = in_array($this->controllerName, array('Bitbucket', 'Github', 'Gitlab', 'BuildStatus', 'Git'));
-            $skipValidation = ($externalAction || $sessionAction);
+            $view = new View('exception');
+            $view->exception = $ex;
 
-            if ($skipValidation || $this->validateSession()) {
-                parent::handleRequest();
-            }
+            $this->response->setResponseCode($ex->getErrorCode());
+            $this->response->setContent($view->render());
         } catch (\Exception $ex) {
-            $content = '<h1>There was a problem with this request</h1>
-            <p>Please paste the details below into a
-            <a href="https://github.com/Block8/PHPCI/issues/new">new bug report</a>
-            so that we can investigate and fix it.</p>';
+            $this->config->set('page_title', 'Error');
 
-            ob_start();
-            var_dump(array(
-                'message' => $ex->getMessage(),
-                'file' => $ex->getFile(),
-                'line' => $ex->getLine(),
-                'trace' => $ex->getTraceAsString()
-            ));
-            var_dump(array(
-                'PATH_INFO' => $_SERVER['PATH_INFO'],
-                'REDIRECT_PATH_INFO' => $_SERVER['REDIRECT_PATH_INFO'],
-                'REQUEST_URI' => $_SERVER['REQUEST_URI'],
-                'PHP_SELF' => $_SERVER['PHP_SELF'],
-                'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
-                'DOCUMENT_ROOT' => $_SERVER['DOCUMENT_ROOT'],
-                'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'],
-                'SERVER_SOFTWARE' => $_SERVER['SERVER_SOFTWARE'],
-            ));
-            $content .= ob_get_contents();
-            ob_end_clean();
+            $view = new View('exception');
+            $view->exception = $ex;
 
-            $this->response->setContent($content);
-            $this->response->disableLayout();
+            $this->response->setResponseCode(500);
+            $this->response->setContent($view->render());
         }
-
 
         if (View::exists('layout') && $this->response->hasLayout()) {
             $view           = new View('layout');
+            $pageTitle = $this->config->get('page_title', null);
+
+            if (!is_null($pageTitle)) {
+                $view->title = $pageTitle;
+            }
+
             $view->content  = $this->response->getContent();
             $this->response->setContent($view->render());
         }
 
         return $this->response;
-    }
-
-    /**
-    * Validate whether or not the remote user has a valid session:
-    */
-    protected function validateSession()
-    {
-        if (!empty($_SESSION['user_id'])) {
-            $user = b8\Store\Factory::getStore('User')->getByPrimaryKey($_SESSION['user_id']);
-
-            if ($user) {
-                $_SESSION['user'] = $user;
-                return true;
-            }
-
-            unset($_SESSION['user_id']);
-        }
-
-        if ($this->request->isAjax()) {
-            $this->response->setResponseCode(401);
-            $this->response->setContent('');
-        } else {
-            $this->response = new RedirectResponse($this->response);
-            $this->response->setHeader('Location', PHPCI_URL.'session/login');
-        }
-
-        return false;
     }
 }

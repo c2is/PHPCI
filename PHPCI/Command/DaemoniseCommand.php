@@ -1,12 +1,11 @@
 <?php
 /**
-* PHPCI - Continuous Integration for PHP
-* nohup PHPCI_DIR/console phpci:start-daemon > /dev/null 2>&1 &
-*
-* @copyright    Copyright 2013, Block 8 Limited.
-* @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
-* @link         http://www.phptesting.org/
-*/
+ * PHPCI - Continuous Integration for PHP
+ *
+ * @copyright    Copyright 2014, Block 8 Limited.
+ * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
+ * @link         https://www.phptesting.org/
+ */
 
 namespace PHPCI\Command;
 
@@ -35,6 +34,16 @@ class DaemoniseCommand extends Command
      * @var OutputInterface
      */
     protected $output;
+
+    /**
+     * @var boolean
+     */
+    protected $run;
+
+    /**
+     * @var int
+     */
+    protected $sleep;
 
     /**
      * @param \Monolog\Logger $logger
@@ -66,15 +75,16 @@ class DaemoniseCommand extends Command
         $this->run   = true;
         $this->sleep = 0;
         $runner      = new RunCommand($this->logger);
+        $runner->setBaxBuilds(1);
 
-        $in = new ArgvInput(array());
+        $emptyInput = new ArgvInput(array());
 
         while ($this->run) {
 
             $buildCount = 0;
 
             try {
-                $buildCount = $runner->run($in, $output);
+                $buildCount = $runner->run($emptyInput, $output);
             } catch (\Exception $e) {
                 var_dump($e);
             }

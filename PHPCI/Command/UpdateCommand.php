@@ -2,9 +2,9 @@
 /**
  * PHPCI - Continuous Integration for PHP
  *
- * @copyright    Copyright 2013, Block 8 Limited.
+ * @copyright    Copyright 2014, Block 8 Limited.
  * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
- * @link         http://www.phptesting.org/
+ * @link         https://www.phptesting.org/
  */
 
 namespace PHPCI\Command;
@@ -48,8 +48,28 @@ class UpdateCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        // Update the database:
-        $gen = new \b8\Database\Generator(\b8\Database::getConnection(), 'PHPCI', './PHPCI/Model/Base/');
-        $gen->generate();
+        $this->verifyInstalled($output);
+
+        $output->write('Updating PHPCI database: ');
+
+        shell_exec(PHPCI_DIR . 'vendor/bin/phinx migrate -c "' . PHPCI_DIR . 'phinx.php"');
+
+        $output->writeln('<info>Done!</info>');
+    }
+
+    protected function verifyInstalled(OutputInterface $output)
+    {
+        if (!file_exists(PHPCI_DIR . 'PHPCI/config.yml')) {
+            $output->writeln('<error>PHPCI does not appear to be installed.</error>');
+            $output->writeln('<error>Please install PHPCI via phpci:install instead.</error>');
+            die;
+        }
+
+        $content = file_get_contents(PHPCI_DIR . 'PHPCI/config.yml');
+        if (empty($content)) {
+            $output->writeln('<error>PHPCI does not appear to be installed.</error>');
+            $output->writeln('<error>Please install PHPCI via phpci:install instead.</error>');
+            die;
+        }
     }
 }

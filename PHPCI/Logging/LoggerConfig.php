@@ -1,14 +1,20 @@
 <?php
+/**
+ * PHPCI - Continuous Integration for PHP
+ *
+ * @copyright    Copyright 2014, Block 8 Limited.
+ * @license      https://github.com/Block8/PHPCI/blob/master/LICENSE.md
+ * @link         https://www.phptesting.org/
+ */
 
-
-namespace PHPCI\Helper;
-
+namespace PHPCI\Logging;
 
 use Monolog\Logger;
 
-class LoggerConfig {
+class LoggerConfig
+{
 
-    const KEY_AlwaysLoaded = "_";
+    const KEY_ALWAYS_LOADED = "_";
 
     private $config;
 
@@ -23,8 +29,7 @@ class LoggerConfig {
     {
         if (file_exists($filePath)) {
             $configArray = require($filePath);
-        }
-        else {
+        } else {
             $configArray = array();
         }
         return new self($configArray);
@@ -36,7 +41,8 @@ class LoggerConfig {
      * array of LogHandlers.
      * @param array $configArray
      */
-    function __construct(array $configArray = array()) {
+    public function __construct(array $configArray = array())
+    {
         $this->config = $configArray;
     }
 
@@ -46,13 +52,15 @@ class LoggerConfig {
      * @param $name
      * @return Logger
      */
-    public function getFor($name) {
-        $handlers = $this->getHandlers(self::KEY_AlwaysLoaded);
+    public function getFor($name)
+    {
+        $handlers = $this->getHandlers(self::KEY_ALWAYS_LOADED);
         $handlers = array_merge($handlers, $this->getHandlers($name));
         return new Logger($name, $handlers);
     }
 
-    protected function getHandlers($key) {
+    protected function getHandlers($key)
+    {
         $handlers = array();
 
         // They key is expected to either be an array or
@@ -60,12 +68,10 @@ class LoggerConfig {
         if (isset($this->config[$key])) {
             if (is_callable($this->config[$key])) {
                 $handlers = call_user_func($this->config[$key]);
-            }
-            elseif(is_array($this->config[$key])) {
+            } elseif (is_array($this->config[$key])) {
                 $handlers = $this->config[$key];
             }
         }
         return $handlers;
     }
-
 }
